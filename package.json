@@ -1,0 +1,12 @@
+{
+  "name": "inbox-digest",
+  "version": "1.0.0",
+  "description": "AI-powered newsletter digest generator with knowledge web insights",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

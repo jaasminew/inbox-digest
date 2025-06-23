@@ -1,0 +1,313 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 460px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: #f7f7f7;
+    overflow-y: auto;
+}
+
+.container {
+    padding: 20px;
+    width: 100%;
+    background-color: #f9f9f9;
+    color: #333;
+    box-sizing: border-box;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.header img {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 8px;
+}
+
+.header h1 {
+    font-size: 22px;
+    margin: 0;
+}
+
+.header h2 {
+    font-size: 20px;
+    margin: 0;
+}
+
+.header .subtitle {
+    font-size: 14px;
+    color: #666;
+    margin-top: 4px;
+}
+
+/* --- Status Grid --- */
+.status-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 20px;
+}
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+}
+
+.status-indicator {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-indicator.configured, .status-indicator.set, .status-indicator.connected {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-indicator.not-configured, .status-indicator.not-set {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status-indicator.error {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* --- Buttons --- */
+.btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    margin-bottom: 10px;
+    transition: background-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+
+.btn-primary:disabled {
+    background-color: #a0c7ff;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background-color: #f0f0f0;
+    color: #333;
+    border: 1px solid #ccc;
+}
+
+.btn-secondary:hover {
+    background-color: #e0e0e0;
+}
+
+.btn-full-width {
+    width: 100%;
+}
+
+/* --- Summary Box --- */
+.summary-box {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    margin-top: 20px;
+    box-sizing: border-box;
+}
+
+.summary-box h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #555;
+    font-weight: 600;
+}
+
+#summaryResult p {
+    margin: 0;
+    font-size: 14px;
+}
+
+#summaryResult p.error {
+    color: #d93025;
+    font-weight: 500;
+}
+
+/* --- Footer --- */
+.footer-links {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 12px;
+}
+
+.footer-links a {
+    color: #007bff;
+    text-decoration: none;
+    margin: 0 5px;
+}
+
+.footer-links a:hover {
+    text-decoration: underline;
+}
+
+/* --- Forms (Onboarding & Settings) --- */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; /* Important for padding */
+}
+
+.form-group small {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.actions-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.primary-button, .secondary-button {
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 14px;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.primary-button {
+    background-color: #007bff;
+    color: white;
+    font-weight: 600;
+}
+
+.primary-button:hover {
+    background-color: #0056b3;
+}
+
+.secondary-button {
+    background-color: #fff;
+    color: #333;
+    border: 1px solid #ccc;
+}
+
+.secondary-button:hover {
+    background-color: #f2f2f2;
+}
+
+.quick-test-section {
+    background-color: #fff;
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.quick-test-section h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 16px;
+    color: #333;
+}
+
+.summary-result-container {
+    min-height: 40px;
+    padding: 8px;
+    background-color: #f7f7f7;
+    border-radius: 4px;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #555;
+}
+
+.summary-result-container .error {
+    color: #d93025;
+    font-weight: bold;
+}
+
+footer {
+    margin-top: 16px;
+    text-align: center;
+}
+
+.footer-links {
+    font-size: 12px;
+}
+
+.footer-links a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.footer-links a:hover {
+    text-decoration: underline;
+}
+
+/* Status indicators from previous logic */
+.status-indicator {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+.status-indicator.configured {
+    background-color: #e6f4ea;
+    color: #28a745;
+}
+.status-indicator.not-configured {
+    background-color: #fff4e5;
+    color: #ff9800;
+}
+.status-indicator.error {
+    background-color: #fbe9e7;
+    color: #d93025;
+} 

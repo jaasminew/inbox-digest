@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inbox Digest</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Onboarding View -->
+        <div id="onboarding-view" style="display:none;">
+            <div class="header">
+                <img src="../assets/icons/icon48.png" alt="Inbox Digest Icon">
+                <h1>Welcome to Inbox Digest</h1>
+            </div>
+            <p>First, let's set up your preferences to personalize your summaries.</p>
+            <form id="preferencesForm">
+                <div class="form-group">
+                    <label for="occupation">What is your occupation or role?</label>
+                    <input type="text" id="occupation" name="occupation" class="form-control" placeholder="e.g., Software Engineer, Product Manager" required>
+                </div>
+                <div class="form-group">
+                    <label for="currentWork">What are you currently working on?</label>
+                    <input type="text" id="currentWork" name="currentWork" class="form-control" placeholder="e.g., Developing a new AI feature" required>
+                </div>
+                <div class="form-group">
+                    <label for="topics">What topics are you most interested in?</label>
+                    <input type="text" id="topics" name="topics" class="form-control" placeholder="e.g., AI, venture capital, product design" required>
+                    <small>Separate topics with a comma.</small>
+                </div>
+                <div class="form-group">
+                    <label for="digestFrequency">How often do you want digests?</label>
+                    <select id="digestFrequency" name="digestFrequency" class="form-control">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full-width">Save Preferences & Start</button>
+            </form>
+        </div>
+
+        <!-- Main View -->
+        <div id="main-view" style="display:none;">
+            <div class="header">
+                <h1>Inbox Digest</h1>
+                <p class="subtitle">AI-powered newsletter summaries</p>
+            </div>
+
+            <div class="status-grid">
+                <div class="status-item">
+                    <span>Gmail API:</span>
+                    <span id="gmailStatus" class="status-indicator"></span>
+                </div>
+                <div class="status-item">
+                    <span>OpenAI API:</span>
+                    <span id="openaiStatus" class="status-indicator"></span>
+                </div>
+                <div class="status-item">
+                    <span>Preferences:</span>
+                    <span id="preferencesStatus" class="status-indicator"></span>
+                </div>
+            </div>
+
+            <button id="generateDigest" class="btn btn-primary">🚀 Generate Digest</button>
+            <button id="openOptions" class="btn btn-secondary">⚙️ Settings</button>
+            <button id="openInsights" class="btn btn-secondary">🕸️ Knowledge Web</button>
+
+            <div class="summary-box">
+                <h4>Latest Digest Status</h4>
+                <div id="summaryResult">
+                    <p>Click "Generate Digest" to get your first summary.</p>
+                </div>
+            </div>
+
+            <div class="footer-links">
+                <a href="#" id="viewHistory">History</a>
+                <a href="#" id="exportData">Export</a>
+            </div>
+        </div>
+
+        <!-- Settings View -->
+        <div id="settings-view" style="display:none;">
+            <div class="header">
+                 <h2>Settings</h2>
+            </div>
+            <p>Update your preferences to tailor your digests.</p>
+            <form id="settingsForm">
+                <div class="form-group">
+                    <label for="settingsOccupation">What is your occupation or role?</label>
+                    <input type="text" id="settingsOccupation" name="occupation" class="form-control" placeholder="e.g., Software Engineer, Product Manager">
+                </div>
+                <div class="form-group">
+                    <label for="settingsCurrentWork">What are you currently working on?</label>
+                    <input type="text" id="settingsCurrentWork" name="currentWork" class="form-control" placeholder="e.g., Developing a new AI feature">
+                </div>
+                <div class="form-group">
+                    <label for="settingsTopics">What topics are you most interested in?</label>
+                    <input type="text" id="settingsTopics" name="topics" class="form-control" placeholder="e.g., AI, venture capital, product design">
+                    <small>Separate topics with a comma.</small>
+                </div>
+                <div class="form-group">
+                    <label for="settingsDigestFrequency">How often do you want digests?</label>
+                    <select id="settingsDigestFrequency" name="digestFrequency" class="form-control">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="cancelSettings" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+    <script src="popup.js" type="module"></script>
+</body>
+</html> 

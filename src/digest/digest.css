@@ -1,0 +1,234 @@
+/* Digest Page Styles */
+:root {
+    --primary-color: #1a73e8;
+    --text-color: #202124;
+    --secondary-text: #5f6368;
+    --border-color: #dadce0;
+    --background-color: #ffffff;
+    --section-background: #f8f9fa;
+    --hover-color: #f1f3f4;
+}
+
+body {
+    font-family: 'Google Sans', Arial, sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    margin: 0;
+    padding: 0;
+    background-color: var(--background-color);
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Header Styles */
+.digest-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.digest-title {
+    font-size: 2rem;
+    font-weight: 500;
+    margin: 0 0 0.5rem 0;
+    color: var(--text-color);
+}
+
+.digest-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: var(--secondary-text);
+    font-size: 0.9rem;
+}
+
+.digest-date {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.reading-time {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--background-color);
+    color: var(--text-color);
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.2s;
+}
+
+.btn:hover {
+    background-color: var(--hover-color);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+}
+
+.btn-primary:hover {
+    background-color: #1557b0;
+}
+
+/* Export Menu */
+.export-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--background-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+}
+
+.export-menu button {
+    display: block;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--text-color);
+}
+
+.export-menu button:hover {
+    background-color: var(--hover-color);
+}
+
+/* Stats Section */
+.stats-section {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background-color: var(--section-background);
+    border-radius: 8px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: var(--secondary-text);
+}
+
+/* Content Sections */
+.section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background-color: var(--section-background);
+    border-radius: 8px;
+}
+
+.section-title {
+    font-size: 1.5rem;
+    font-weight: 500;
+    margin: 0 0 1rem 0;
+    color: var(--text-color);
+}
+
+.item {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.item-title {
+    font-size: 1.2rem;
+    font-weight: 500;
+    margin: 0 0 0.5rem 0;
+    color: var(--text-color);
+}
+
+.item-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.9rem;
+    color: var(--secondary-text);
+    margin-bottom: 0.5rem;
+}
+
+.item-summary {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-color);
+}
+
+/* Print Styles */
+@media print {
+    .action-buttons,
+    .export-menu {
+        display: none;
+    }
+
+    .container {
+        max-width: none;
+        padding: 0;
+    }
+
+    body {
+        background: white;
+    }
+
+    .section {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+
+    .stats-section {
+        grid-template-columns: 1fr;
+    }
+
+    .digest-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+} 

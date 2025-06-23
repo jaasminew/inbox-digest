@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Web Insights - Inbox Digest</title>
+    <link rel="stylesheet" href="../styles/global.css">
+    <link rel="stylesheet" href="../styles/components.css">
+    <link rel="stylesheet" href="insights.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Knowledge Web Insights</h1>
+            <p class="subtitle">Your personalized intelligence dashboard built from historical digest data</p>
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span class="stat-number" id="totalDigests">0</span>
+                    <span class="stat-label">Digests Analyzed</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="totalTrends">0</span>
+                    <span class="stat-label">Trends Identified</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="totalOpportunities">0</span>
+                    <span class="stat-label">Opportunities Found</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-date" id="lastUpdated">Never</span>
+                    <span class="stat-label">Last Updated</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- Executive Summary -->
+            <section class="insight-section">
+                <h2>Executive Summary</h2>
+                <div class="summary-card" id="executiveSummary">
+                    <div class="loading">Loading insights...</div>
+                </div>
+            </section>
+
+            <!-- Trends Analysis -->
+            <section class="insight-section">
+                <h2>Emerging Trends</h2>
+                <div class="trends-grid" id="trendsContainer">
+                    <div class="loading">Analyzing trends...</div>
+                </div>
+            </section>
+
+            <!-- Business Opportunities -->
+            <section class="insight-section">
+                <h2>Business Opportunities</h2>
+                <div class="opportunities-grid" id="opportunitiesContainer">
+                    <div class="loading">Identifying opportunities...</div>
+                </div>
+            </section>
+
+            <!-- Personalized Recommendations -->
+            <section class="insight-section">
+                <h2>Personalized Recommendations</h2>
+                <div class="recommendations-list" id="recommendationsContainer">
+                    <div class="loading">Generating recommendations...</div>
+                </div>
+            </section>
+
+            <!-- Timeline -->
+            <section class="insight-section">
+                <h2>Key Events Timeline</h2>
+                <div class="timeline-container" id="timelineContainer">
+                    <div class="loading">Building timeline...</div>
+                </div>
+            </section>
+
+            <!-- Topic Network -->
+            <section class="insight-section">
+                <h2>Topic Network</h2>
+                <div class="network-container" id="networkContainer">
+                    <div class="loading">Mapping connections...</div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <div class="actions">
+                <button id="refreshBtn" class="primary-button">Refresh Insights</button>
+                <button id="exportBtn" class="secondary-button">Export Report</button>
+                <button id="clearBtn" class="danger-button">Clear All Data</button>
+            </div>
+        </footer>
+    </div>
+
+    <script src="insights.js" type="module"></script>
+</body>
+</html> 

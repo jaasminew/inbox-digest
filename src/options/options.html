@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inbox Digest Settings</title>
+    <link rel="stylesheet" href="../styles/global.css">
+    <link rel="stylesheet" href="../styles/components.css">
+    <link rel="stylesheet" href="options.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Personalize Your Digest</h1>
+            <p class="subtitle">Tell us what you're interested in to get a highly relevant, AI-powered summary.</p>
+        </header>
+
+        <main>
+            <form id="preferencesForm">
+                <section class="preference-section">
+                    <h2>Your Profile</h2>
+                    <div class="form-group">
+                        <label for="occupation">What is your occupation or role?</label>
+                        <input type="text" id="occupation" name="occupation" placeholder="e.g., Software Engineer, Product Manager, Medical Researcher" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="currentWork">What are you currently working on or learning about?</label>
+                        <textarea id="currentWork" name="currentWork" rows="3" 
+                            placeholder="e.g., Developing a new feature for a mobile app, researching market trends in AI, preparing for a product launch"></textarea>
+                    </div>
+                </section>
+                
+                <section class="preference-section">
+                    <h2>Content & Delivery</h2>
+                    <div class="form-group">
+                        <label for="topics">Are there any other specific topics you're interested in? (optional)</label>
+                        <input type="text" id="topics" name="topics" placeholder="e.g., renewable energy, quantum computing, european politics">
+                    </div>
+                     <div class="form-group">
+                        <label for="digestDetailedness">Preferred Digest Detailedness</label>
+                        <select id="digestDetailedness" name="digestDetailedness" required>
+                            <option value="short">Quick Overview (Concise bullet points)</option>
+                            <option value="medium" selected>Balanced Summary (Standard detail)</option>
+                            <option value="long">In-Depth Analysis (More comprehensive)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="frequency">Push Frequency</label>
+                        <select id="frequency" name="frequency" required>
+                            <option value="daily" selected>Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                    </div>
+                </section>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button">Save Preferences</button>
+                    <button type="button" id="resetBtn" class="secondary-button">Reset to Defaults</button>
+                </div>
+            </form>
+        </main>
+    </div>
+    <script src="options.js" type="module"></script>
+</body>
+</html> 
