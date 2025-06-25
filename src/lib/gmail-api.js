@@ -34,7 +34,7 @@ export async function initializeGmailAPI() {
 export async function fetchNewsletterEmails(period = '7d') {
     try {
         const token = await getAuthToken();
-        const query = `category:updates newer_than:${period}`;
+        const query = `category:updates AND "unsubscribe" newer_than:${period}`;
 
         const response = await fetch(`https://www.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=50`, {
             headers: {
@@ -60,7 +60,7 @@ export async function fetchNewsletterEmails(period = '7d') {
             )
         );
 
-        return emails.filter(email => isNewsletter(email));
+        return emails;
     } catch (error) {
         console.error('Error fetching emails:', error);
         throw new Error('Failed to fetch emails');
@@ -127,30 +127,6 @@ function processEmailData(emailData) {
         body,
         snippet: emailData.snippet
     };
-}
-
-/**
- * Determine if an email is a newsletter
- * @param {Object} email Processed email object
- * @returns {boolean} Whether the email is a newsletter
- */
-function isNewsletter(email) {
-    // Primary check: Presence of a List-Unsubscribe header is a strong indicator.
-    if (email.listUnsubscribe) {
-        return true;
-    }
-
-    // Fallback check: Look for common newsletter keywords in the body or subject.
-    const newsletterIndicators = [
-        'unsubscribe',
-        'newsletter',
-        'view this email in your browser',
-        'email preferences',
-        'update your preferences'
-    ];
-
-    const content = `${email.subject} ${email.snippet} ${email.body.substring(0, 2000)}`.toLowerCase();
-    return newsletterIndicators.some(indicator => content.includes(indicator));
 }
 
 /**

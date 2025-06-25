@@ -2,9 +2,13 @@
  * Digest generation and formatting
  */
 
-import { getStoredPreferences } from './personalization.js';
 import { fetchNewsletterEmails } from './gmail-api.js';
-import { pickRelevantEmails, generateSummaryFromEmails } from './openai-handler.js';
+import {
+    filterRelevantEmails,
+    generateSummaryFromEmails,
+    offscreenManager
+} from './openai-handler.js';
+import { getStoredPreferences } from './personalization.js';
 import { addDigestToKnowledgeWeb, extractUrls, fetchAndParseArticle } from './knowledge-web.js';
 
 /**
@@ -15,29 +19,38 @@ import { addDigestToKnowledgeWeb, extractUrls, fetchAndParseArticle } from './kn
 export async function generateDigest(period = '7d') {
     console.log('[Digest Generator] Starting digest generation for period:', period);
     try {
+        await offscreenManager.setup();
+
         const [preferences, allEmails] = await Promise.all([
             getStoredPreferences(),
             fetchNewsletterEmails(period)
         ]);
-        console.log('[Digest Generator] Fetched preferences and all emails.');
-
-        if (!allEmails || allEmails.length === 0) {
-            console.log('[Digest Generator] No emails found. Aborting.');
-            return { success: true, digest: 'No new newsletters found to summarize.' };
+        console.log(`[Digest Generator] Fetched ${allEmails.length} emails.`);
+        if (allEmails.length === 0) {
+            return { success: true, digest: "No new emails to digest in the last week." };
         }
 
-        // Take only the 20 most recent emails to avoid rate limiting.
-        const emails = allEmails.slice(0, 20);
-        console.log(`[Digest Generator] Processing the ${emails.length} most recent emails out of ${allEmails.length} total.`);
-        console.log('[Digest Generator] Fetched emails for inspection:', emails);
+        console.log('[Digest Generator] Filtering relevant emails...');
+        const relevantEmails = await filterRelevantEmails(allEmails, preferences);
+        console.log(`[Digest Generator] Relevant emails after filtering:`, relevantEmails);
 
-        // Temporarily skipping summarization to inspect emails.
-        console.log('[Digest Generator] OpenAI call disabled for inspection.');
-        return { success: true, digest: "Inspection mode: No summary generated." };
+        if (relevantEmails.length === 0) {
+            console.log('[Digest Generator] No relevant emails found to generate a digest.');
+            return { success: true, digest: "No relevant topics found in your recent emails. Your inbox is on top of things!" };
+        }
+
+        console.log(`[Digest Generator] Sending ${relevantEmails.length} relevant emails to AI for summarization...`);
+        const summary = await generateSummaryFromEmails(relevantEmails, preferences);
+        
+        console.log('[Digest Generator] Digest generation complete.');
+        return { success: true, digest: summary };
 
     } catch (error) {
         console.error('[Digest Generator] A critical error occurred:', error);
         return { success: false, error: error.message };
+    } finally {
+        console.log('[Digest Generator] Closing offscreen document.');
+        await offscreenManager.close();
     }
 }
 

@@ -177,6 +177,7 @@ async function handleGenerateDigest() {
     summaryResult.innerHTML = '<p>Contacting background service...</p>';
 
     try {
+        const userPreferences = await getStoredPreferences();
         const period = (userPreferences && userPreferences.digestFrequency === 'daily') ? '1d' : '7d';
         const response = await chrome.runtime.sendMessage({ type: 'GENERATE_DIGEST', period: period });
         

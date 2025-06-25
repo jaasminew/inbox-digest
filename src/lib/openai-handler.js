@@ -14,6 +14,88 @@ const API_KEY = OPENAI_API_KEY; // From config.js
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second base delay
 
+const OFFSCREEN_DOCUMENT_PATH = '/src/lib/offscreen.html';
+const PING_INTERVAL = 50; // ms
+const PING_TIMEOUT = 5000; // 5 seconds
+
+// Module-level state to prevent race conditions.
+let isCreating = false;
+let setupPromise = null;
+
+/**
+ * A robust manager for the offscreen document.
+ * Ensures the document is created only once and is fully ready before resolving.
+ */
+export const offscreenManager = {
+    async setup() {
+        if (await chrome.offscreen.hasDocument()) {
+            return;
+        }
+
+        // If another setup call is already in progress, wait for it to complete.
+        if (isCreating && setupPromise) {
+            return setupPromise;
+        }
+
+        isCreating = true;
+        setupPromise = new Promise(async (resolve, reject) => {
+            try {
+                await chrome.offscreen.createDocument({
+                    url: OFFSCREEN_DOCUMENT_PATH,
+                    reasons: ['DOM_PARSER'],
+                    justification: 'To parse HTML content from emails.',
+                });
+
+                // Wait for the document to be ready by pinging it.
+                const success = await this.waitForReady();
+                if (success) {
+                    resolve();
+                } else {
+                    reject(new Error("Offscreen document timed out."));
+                }
+            } catch (error) {
+                reject(error);
+            } finally {
+                isCreating = false;
+                setupPromise = null;
+            }
+        });
+
+        return setupPromise;
+    },
+
+    async waitForReady() {
+        return new Promise((resolve) => {
+            const timeout = setTimeout(() => {
+                clearInterval(interval);
+                resolve(false);
+            }, PING_TIMEOUT);
+
+            const interval = setInterval(async () => {
+                try {
+                    const response = await chrome.runtime.sendMessage({
+                        type: 'ping',
+                        target: 'offscreen'
+                    });
+                    if (response && response.pong) {
+                        clearInterval(interval);
+                        clearTimeout(timeout);
+                        resolve(true);
+                    }
+                } catch (e) {
+                    // Ignore "receiving end does not exist" errors while we wait.
+                }
+            }, PING_INTERVAL);
+        });
+    },
+
+    async close() {
+        if (await chrome.offscreen.hasDocument()) {
+            await chrome.offscreen.closeDocument();
+        }
+    }
+};
+
 /**
  * Initialize OpenAI client by retrieving the API key from storage.
  * @returns {Promise<string>} The user's OpenAI API key.
@@ -26,34 +108,24 @@ export async function initializeOpenAI() {
 }
 
 /**
- * Extracts the core text content from email HTML, focusing on the <tbody>.
+ * Extracts the core text content from email HTML by sending it to an offscreen document.
+ * Assumes the document has already been created by the orchestrator.
  * @param {string} htmlString The raw HTML of the email.
- * @returns {string} The cleaned text content.
+ * @returns {Promise<{text: string, links: Array<string>}>} The cleaned text content and links.
  */
-export function cleanEmailContent(htmlString) {
+export async function cleanEmailContent(htmlString) {
     if (!htmlString) return { text: '', links: [] };
+
     try {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlString, 'text/html');
-        
-        // Extract links
-        const links = [...doc.querySelectorAll('a')]
-            .map(a => a.href)
-            .filter(href => href && href.startsWith('http'));
-
-        const mainContent = doc.querySelector('tbody') || doc.body;
-        if (!mainContent) return { text: '', links: [] };
-        
-        let text = mainContent.textContent || '';
-        
-        const cleanedText = text
-            .replace(/\s+/g, ' ') // Normalize whitespace
-            .replace(/unsubscribe|view in browser|privacy policy/gi, '') // Remove common footer links
-            .trim();
-
-        return { text: cleanedText, links: [...new Set(links)] }; // Return unique links
+        const cleaned = await chrome.runtime.sendMessage({
+            type: 'clean-html',
+            target: 'offscreen',
+            data: { htmlString },
+        });
+        return cleaned;
     } catch (error) {
-        console.error("Could not parse email HTML:", error);
+        console.error("Error communicating with offscreen document:", error.message);
+        // Fallback in case of messaging errors
         const textOnly = htmlString.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
         return { text: textOnly, links: [] };
     }
@@ -332,7 +404,7 @@ Focus on key takeaways, insights, and actionable information. Be concise.
  * @returns {Promise<string>} The summary of the single email.
  */
 async function summarizeSingleEmail(email, preferences) {
-    const cleaned = cleanEmailContent(email.body);
+    const cleaned = await cleanEmailContent(email.body);
     if (!cleaned.text) {
         return ''; // Skip empty emails
     }
@@ -354,7 +426,7 @@ async function summarizeSingleEmail(email, preferences) {
 }
 
 /**
- * Orchestrates the summarization of multiple emails using a map-reduce strategy.
+ * Orchestrates the summarization of multiple emails by aggregating content and summarizing once.
  * @param {Array<Object>} emails Array of email objects with full content.
  * @param {Object} preferences User preferences.
  * @returns {Promise<string>} The final, structured summary in Markdown format.
@@ -365,31 +437,32 @@ export async function generateSummaryFromEmails(emails, preferences) {
     }
 
     try {
-        console.log(`[OpenAI Handler] Starting multi-step summarization for ${emails.length} emails.`);
+        console.log(`[OpenAI Handler] Starting single-pass summarization for ${emails.length} emails.`);
 
-        // STEP 1: Summarize each email individually (Map)
-        console.log('[OpenAI Handler] Step 1: Summarizing emails individually...');
-        const summaryPromises = emails.map(email => summarizeSingleEmail(email, preferences));
-        const individualSummaries = await Promise.all(summaryPromises);
+        // Clean and aggregate all email content at once
+        console.log('[OpenAI Handler] Cleaning and aggregating email content...');
+        const cleaningPromises = emails.map(email => cleanEmailContent(email.body));
+        const cleanedContents = await Promise.all(cleaningPromises);
 
-        const validSummaries = individualSummaries.filter(s => s && s.trim() !== '');
-        console.log(`[OpenAI Handler] Successfully generated ${validSummaries.length} individual summaries.`);
+        // Combine all email content with headers
+        const aggregatedContent = emails.map((email, index) => {
+            const cleanedText = cleanedContents[index].text;
+            if (!cleanedText || cleanedText.trim().length === 0) {
+                console.warn(`[OpenAI Handler] No content extracted from email: ${email.subject}`);
+                return '';
+            }
+            
+            return `--- Email from: ${email.from}, Subject: ${email.subject} ---\n${cleanedText}`;
+        }).filter(content => content.trim().length > 0).join('\n\n');
 
-        if (validSummaries.length === 0) {
-            return "Could not generate any summaries from the provided emails.";
+        if (!aggregatedContent || aggregatedContent.trim().length === 0) {
+            return "Could not extract any meaningful content from the provided emails.";
         }
-        
-        if (validSummaries.length === 1) {
-            return validSummaries[0];
-        }
 
-        // STEP 2: Combine individual summaries and create a final digest (Reduce)
-        console.log('[OpenAI Handler] Step 2: Synthesizing final digest from individual summaries...');
-        const aggregatedSummaries = validSummaries
-            .map((summary, index) => `--- Summary of Email from: ${emails[index].from}, Subject: ${emails[index].subject} ---\n${summary}`)
-            .join('\n\n');
-        
-        const finalDigest = await summarizeAggregatedContent(aggregatedSummaries, preferences);
+        console.log(`[OpenAI Handler] Aggregated ${aggregatedContent.length} characters of content from ${emails.length} emails.`);
+
+        // Single summarization call with all content
+        const finalDigest = await summarizeAggregatedContent(aggregatedContent, preferences);
 
         console.log("[OpenAI Handler] Successfully generated final digest.");
         return finalDigest;
@@ -443,4 +516,153 @@ async function callOpenAI(body) {
         }
     }
     throw lastError;
+}
+
+/**
+ * Generates a prompt to filter emails based on content snippets.
+ * @param {Array<Object>} emailSnippets - Array of objects with { id, snippet }.
+ * @param {Object} preferences - User's preferences.
+ * @returns {string} The prompt for the LLM.
+ */
+function generateRelevanceFilterPrompt(emailSnippets, preferences) {
+    const emailListString = emailSnippets
+        .map(email => `--- Email ID: ${email.id} ---\n${email.snippet}...`)
+        .join('\n\n');
+
+    return `You are an expert intelligence analyst whose job is to build a personalized briefing for a client. Your client's profile is:
+- Occupation: ${preferences.occupation}
+- Currently working on: ${preferences.currentWork}
+- Key Topics: ${(preferences.topics || []).join(', ')}
+
+CRITICAL: Your default should be to INCLUDE emails unless they are clearly irrelevant. When in doubt, include the email. Think broadly about connections and themes.
+
+Your goal is to cast a wide net and identify emails with ANY substantive content that could be relevant to the user's interests. Think about:
+
+1. DIRECT RELEVANCE: Content explicitly about the user's topics
+2. ADJACENT TOPICS: Related fields, complementary skills, industry context
+3. BROADER ECOSYSTEM: Market trends, funding, people, companies in related spaces
+4. EMERGING THEMES: New technologies, methodologies, or trends that could impact the user's work
+
+Examples of what to INCLUDE:
+- If user is interested in "AI": include machine learning, data science, automation, coding tools, developer productivity, tech industry news, startup funding, research papers
+- If user is interested in "startups": include venture capital, entrepreneurship, business strategy, market analysis, founder stories, tech trends
+- Content about people, companies, or technologies in the user's broader ecosystem
+- Educational content, tutorials, or insights that could enhance the user's knowledge
+- Industry analysis, market reports, or trend discussions
+- Job opportunities, networking events, or professional development
+
+Only EXCLUDE emails that are clearly:
+- Transactional (receipts, shipping, verification codes, password resets)
+- Pure spam or promotional offers with no informational value
+- Personal correspondence unrelated to professional interests
+- System notifications or automated alerts
+
+Remember: The snippets below contain samples from the BEGINNING, MIDDLE, and END of each email (marked with [middle] and [end] indicators). Even if relevant keywords only appear in the middle or end sections, the email could still be highly valuable. Look for any indicators of relevance throughout all parts of the snippet.
+
+---
+SNIPPETS:
+${emailListString}
+---
+
+Respond with a JSON object containing a single key "emailDecisions". This key should hold an array of objects, where each object has three keys: "id" (the email ID), "include" (a boolean true/false), and "reason" (a brief explanation, under 20 words, for your decision).
+
+Example:
+{
+  "emailDecisions": [
+    { "id": "id1", "include": true, "reason": "Contains AI industry insights and trends." },
+    { "id": "id2", "include": false, "reason": "Transactional shipping notification." }
+  ]
+}
+`;
+}
+
+/**
+ * Uses an LLM to filter a list of emails down to the most relevant ones based on content snippets.
+ * @param {Array<Object>} emails - The full email objects to filter.
+ * @param {Object} preferences - The user's preferences.
+ * @returns {Promise<Array<Object>>} A promise that resolves to the filtered list of full email objects.
+ */
+export async function filterRelevantEmails(emails, preferences) {
+    if (!emails || emails.length === 0) {
+        return [];
+    }
+    console.log(`[OpenAI Handler] Starting relevance filtering for ${emails.length} emails.`);
+
+    // Create snippets from email bodies using smart sampling strategy
+    const emailCleaningPromises = emails.map(email => cleanEmailContent(email.body));
+    const cleanedContents = await Promise.all(emailCleaningPromises);
+
+    console.log('[OpenAI Handler] Sample cleaned content:', cleanedContents.slice(0, 2));
+
+    const emailSnippets = emails.map((email, index) => {
+        const words = cleanedContents[index].text.split(/\s+/).filter(w => w.trim().length > 0);
+        
+        let snippet = '';
+        
+        if (words.length <= 100) {
+            // If short enough, use the whole thing
+            snippet = words.join(' ');
+        } else {
+            // Smart sampling: beginning + middle/end sections
+            const beginningWords = words.slice(0, 50); // First 50 words
+            
+            // For the remaining 50 words, sample from middle and end
+            const remainingWords = words.slice(50);
+            const midPoint = Math.floor(remainingWords.length / 2);
+            
+            // Take 25 words from middle section and 25 from later section
+            const middleWords = remainingWords.slice(midPoint - 12, midPoint + 13); // 25 words around midpoint
+            const endWords = remainingWords.slice(-25); // Last 25 words
+            
+            // Combine with separators to indicate sampling
+            snippet = [
+                beginningWords.join(' '),
+                '... [middle] ...',
+                middleWords.join(' '),
+                '... [end] ...',
+                endWords.join(' ')
+            ].join(' ');
+        }
+        
+        console.log(`[OpenAI Handler] Email ${email.id} smart snippet (${words.length} words total, sampled ${snippet.split(/\s+/).length} words):`, snippet.substring(0, 300) + '...');
+        return {
+            id: email.id,
+            snippet: snippet,
+        };
+    });
+
+    const prompt = generateRelevanceFilterPrompt(emailSnippets, preferences);
+
+    try {
+        const response = await callOpenAI({
+            model: DEFAULT_MODEL,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.1,
+            response_format: { type: "json_object" },
+        });
+
+        const content = JSON.parse(response.choices[0].message.content);
+        const decisions = content.emailDecisions || [];
+
+        // Log the AI's reasoning for inspection with email titles
+        console.log("[OpenAI Handler] AI Filtering Decisions:");
+        decisions.forEach(decision => {
+            const email = emails.find(e => e.id === decision.id);
+            const emailTitle = email ? email.subject : 'Unknown';
+            console.log(`  ${decision.include ? '✓' : '✗'} [${decision.id}] "${emailTitle}" - ${decision.reason}`);
+        });
+        
+        const relevantIds = new Set(
+            decisions.filter(d => d.include).map(d => d.id)
+        );
+        
+        const filteredEmails = emails.filter(email => relevantIds.has(email.id));
+        console.log(`[OpenAI Handler] Finished relevance filtering. Found ${filteredEmails.length} relevant emails.`);
+        return filteredEmails;
+
+    } catch (error) {
+        console.error("Failed to filter emails with LLM:", error);
+        // Fallback: If filtering fails, return the original list to avoid interrupting the flow.
+        return emails;
+    }
 } 
