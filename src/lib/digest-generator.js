@@ -281,7 +281,7 @@ export function exportDigest(digest, format = 'html') {
  */
 function generateHTML(digest) {
     const styles = `
-        <style>
+            <style>
             body { font-family: sans-serif; line-height: 1.6; color: #333; }
             .digest-container { max-width: 800px; margin: 20px auto; padding: 20px; border: 1px solid #eee; }
             h1, h2, h3 { color: #222; }
@@ -291,14 +291,14 @@ function generateHTML(digest) {
             .item-meta { font-size: 0.9em; color: #666; margin-bottom: 0.5em; }
             .fallback-warning { color: #d9534f; font-style: italic; }
             .stats { margin-top: 2em; padding-top: 1em; border-top: 2px solid #333; }
-        </style>
+            </style>
     `;
 
     const body = `
         <div class="digest-container">
-            <h1>${digest.title}</h1>
-            <p>Generated on ${new Date(digest.date).toLocaleString()}</p>
-
+                <h1>${digest.title}</h1>
+                <p>Generated on ${new Date(digest.date).toLocaleString()}</p>
+            
             ${digest.sections.map(section => `
                 <div class="section">
                     <h2>${section.title}</h2>
@@ -314,7 +314,7 @@ function generateHTML(digest) {
                     `).join('')}
                 </div>
             `).join('')}
-
+            
             <div class="stats">
                 <h3>Digest Statistics</h3>
                 <ul>

@@ -22,11 +22,162 @@ function handleMessages(message, sender, sendResponse) {
             const cleanedContent = cleanEmailContent(htmlString);
             sendResponse(cleanedContent);
             break;
+        case 'extract-links':
+            const { htmlString: linkHtml } = message.data;
+            const extractedLinks = extractLinksFromHtml(linkHtml);
+            sendResponse({ links: extractedLinks });
+            break;
         default:
             console.warn(`Unexpected message type received: '${message.type}'.`);
     }
     // Return true to indicate you wish to send a response asynchronously
     return true;
+}
+
+/**
+ * Extract links from HTML with their anchor text, handling complex newsletter structures
+ * @param {string} htmlString The raw HTML of the email
+ * @returns {Array<Object>} Array of {text, href, url} objects
+ */
+function extractLinksFromHtml(htmlString) {
+    if (!htmlString) return [];
+    
+    try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlString, 'text/html');
+        
+        const links = [];
+        const anchorElements = doc.querySelectorAll('a[href]');
+        
+        anchorElements.forEach(anchor => {
+            const href = anchor.getAttribute('href');
+            
+            // Skip invalid links
+            if (!href || 
+                href.startsWith('javascript:') || 
+                href.startsWith('mailto:') ||
+                href.startsWith('#')) {
+                return;
+            }
+            
+            // Strategy 1: Get text directly from anchor
+            let text = anchor.textContent.trim();
+            
+            // Strategy 2: For complex newsletter structures, look for meaningful text in nearby elements
+            if (!text || text.length < 5 || href.includes(text) || text.match(/^https?:\/\//)) {
+                // Look for text in parent container or siblings
+                const parent = anchor.parentElement;
+                if (parent) {
+                    // Check siblings for meaningful text (common in newsletter layouts)
+                    const siblings = Array.from(parent.children);
+                    for (const sibling of siblings) {
+                        if (sibling !== anchor) {
+                            const siblingText = sibling.textContent.trim();
+                            if (siblingText && siblingText.length > 10 && !siblingText.match(/^https?:\/\//)) {
+                                text = siblingText;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // If still no good text, try parent's text content excluding the anchor
+                    if (!text || text.length < 5) {
+                        const parentText = parent.textContent.trim();
+                        const anchorText = anchor.textContent.trim();
+                        const cleanParentText = parentText.replace(anchorText, '').trim();
+                        if (cleanParentText && cleanParentText.length > 10) {
+                            text = cleanParentText;
+                        }
+                    }
+                }
+            }
+            
+            // Strategy 3: Look for strong/em/h1-h6 elements within or near the anchor
+            if (!text || text.length < 5) {
+                const emphasisElements = anchor.querySelectorAll('strong, em, b, i, h1, h2, h3, h4, h5, h6');
+                for (const elem of emphasisElements) {
+                    const emphasisText = elem.textContent.trim();
+                    if (emphasisText && emphasisText.length > 10) {
+                        text = emphasisText;
+                        break;
+                    }
+                }
+            }
+            
+            // Strategy 4: For tracking URLs, look in the surrounding table cell or container
+            if (!text || text.length < 5 || href.includes('tracking')) {
+                let container = anchor.closest('td, div, section, article');
+                if (container) {
+                    // Look for the first substantial text in the container
+                    const walker = document.createTreeWalker(
+                        container,
+                        NodeFilter.SHOW_TEXT,
+                        {
+                            acceptNode: function(node) {
+                                const text = node.textContent.trim();
+                                return text.length > 15 && !text.match(/^https?:\/\//) ? 
+                                    NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+                            }
+                        }
+                    );
+                    
+                    const textNode = walker.nextNode();
+                    if (textNode) {
+                        text = textNode.textContent.trim();
+                    }
+                }
+            }
+            
+            // Final validation
+            if (!text || text.length < 3) {
+                return;
+            }
+            
+            // Clean up text
+            text = text.replace(/\s+/g, ' ').trim();
+            
+            // Skip if text is just the URL
+            if (text === href || href.includes(text)) {
+                return;
+            }
+            
+            // Convert relative URLs to absolute if possible
+            let url = href;
+            if (href.startsWith('/') || href.startsWith('./')) {
+                // Try to extract domain from other absolute URLs in the email
+                const absoluteLinks = Array.from(doc.querySelectorAll('a[href^="http"]'));
+                if (absoluteLinks.length > 0) {
+                    try {
+                        const sampleUrl = new URL(absoluteLinks[0].href);
+                        url = new URL(href, sampleUrl.origin).toString();
+                    } catch (e) {
+                        // If URL construction fails, keep original
+                    }
+                }
+            }
+            
+            links.push({ text, href, url });
+        });
+        
+        // Remove duplicates based on URL and text combination
+        const uniqueLinks = [];
+        const seenCombos = new Set();
+        
+        links.forEach(link => {
+            const combo = `${link.url}|||${link.text.toLowerCase()}`;
+            if (!seenCombos.has(combo)) {
+                seenCombos.add(combo);
+                uniqueLinks.push(link);
+            }
+        });
+        
+        console.log(`[Offscreen] Extracted ${uniqueLinks.length} unique links from HTML (from ${anchorElements.length} anchor elements)`);
+        return uniqueLinks;
+        
+    } catch (error) {
+        console.error('[Offscreen] Error extracting links:', error);
+        return [];
+    }
 }
 
 /**

@@ -8,6 +8,85 @@
 import { getStoredPreferences } from './personalization.js';
 import { OPENAI_API_KEY } from './config.js';
 
+// Import link extraction function from debug-email-filter.js
+async function extractRelevantLinks(htmlString) {
+    if (!htmlString) return [];
+    
+    try {
+        // Send HTML to offscreen document for parsing
+        const result = await chrome.runtime.sendMessage({
+            type: 'extract-links',
+            target: 'offscreen',
+            data: { htmlString },
+        });
+        
+        if (result && result.links) {
+            return filterRelevantLinks(result.links);
+        }
+        
+        return [];
+    } catch (error) {
+        console.error('Error extracting links:', error);
+        return [];
+    }
+}
+
+// Import link filtering function from debug-email-filter.js
+function filterRelevantLinks(links) {
+    if (!links || links.length === 0) return [];
+    
+    // Patterns for irrelevant link text (promotional/boilerplate)
+    const irrelevantPatterns = [
+        /^(click|tap|view|read|see|get|download|access|sign|log|subscribe|unsubscribe|manage|update|share|follow|like|join)\s/i,
+        /\b(here|now|today|more|all|full|complete|entire|details|info|information)\s*$/i,
+        /^(privacy|terms|policy|legal|copyright|contact|about|help|support|faq)$/i,
+        /\b(preferences|settings|profile|account|subscription|newsletter|email)\b/i,
+        /^(facebook|twitter|linkedin|instagram|youtube|social)$/i,
+        /^(forward|share|send|tell|invite)\b/i,
+        /\b(advertisement|ad|promo|promotion|offer|deal|sale|discount)\b/i,
+        /^(©|®|™|\d{4}|\w+@\w+)/i,
+    ];
+    
+    // Patterns for relevant link text (content-focused)
+    const relevantIndicators = [
+        /\b(article|report|study|research|analysis|survey|whitepaper|guide|tutorial|course|webinar|podcast|video|interview|news|announcement|launch|release|update|review|opinion|blog|post)\b/i,
+        /\b(startup|company|funding|investment|venture|capital|IPO|acquisition|merger|partnership|collaboration)\b/i,
+        /\b(AI|artificial\s+intelligence|machine\s+learning|ML|data\s+science|automation|technology|tech|innovation|digital|software|platform|tool|app|product|service|techniques|developers)\b/i,
+        /\b(CEO|founder|executive|leader|expert|scientist|researcher|engineer|developer|designer)\b/i,
+        /\b(conference|event|summit|meetup|workshop|hackathon|demo|presentation|talk|keynote)\b/i,
+        /\b(market|industry|trend|growth|strategy|business|finance|economy|economic|investment)\b/i,
+    ];
+    
+    return links.filter(link => {
+        const linkText = link.text.trim();
+        
+        // Skip very short or empty link text
+        if (linkText.length < 3) return false;
+        
+        // Skip if matches irrelevant patterns
+        if (irrelevantPatterns.some(pattern => pattern.test(linkText))) {
+            return false;
+        }
+        
+        // Include if matches relevant indicators
+        if (relevantIndicators.some(pattern => pattern.test(linkText))) {
+            return true;
+        }
+        
+        // Include if link text is substantive (longer descriptive text)
+        const words = linkText.split(/\s+/);
+        if (words.length >= 3 && words.length <= 20) { // Increased from 15 to 20 words
+            // Check if it's not just generic phrases
+            const genericPhrases = ['click here', 'read more', 'learn more', 'see more', 'get started', 'sign up', 'log in'];
+            if (!genericPhrases.includes(linkText.toLowerCase())) {
+                return true;
+            }
+        }
+        
+        return false;
+    }); // No limit - include all relevant links
+}
+
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const DEFAULT_MODEL = 'gpt-4o';
 const API_KEY = OPENAI_API_KEY; // From config.js
@@ -266,8 +345,10 @@ Your client's professional context is:
 - Currently working on: ${preferences.currentWork}
 - Other interests: ${(preferences.topics || []).join(', ')}
 
-You have been provided with the full content of several newsletters. Your task is to synthesize this information into a single, cohesive digest. 
+You have been provided with the full content of several newsletters, including relevant links found within each email. Your task is to synthesize this information into a single, cohesive digest. 
 Do not just summarize each article one by one. Instead, connect themes, identify trends, and extract the most critical insights relevant to your client's work.
+
+The content includes relevant links with descriptive anchor text and URLs. You can reference these links in your digest to provide additional resources, but you don't need to visit them - the link titles and URLs often provide valuable context about the content.
 
 The client has requested the following level of detail: ${preferences.digestDetailedness}
 
@@ -280,6 +361,7 @@ Please generate the digest in Markdown format. Structure your response with the 
 1.  **## Key Highlights** - A few bullet points summarizing the absolute most important information.
 2.  **## Deep Dive** - A more detailed synthesis of the content, organized by theme.
 3.  **## Action Items & Next Steps** - Suggest potential actions, further reading, or things to watch out for based on the content.
+4.  **## Recommended Links** - If relevant, include a curated list of the most valuable links from the newsletters for further exploration.
 `;
 }
 
@@ -439,12 +521,17 @@ export async function generateSummaryFromEmails(emails, preferences) {
     try {
         console.log(`[OpenAI Handler] Starting single-pass summarization for ${emails.length} emails.`);
 
-        // Clean and aggregate all email content at once
-        console.log('[OpenAI Handler] Cleaning and aggregating email content...');
+        // Clean and aggregate all email content at once, including relevant links
+        console.log('[OpenAI Handler] Cleaning and aggregating email content with relevant links...');
         const cleaningPromises = emails.map(email => cleanEmailContent(email.body));
         const cleanedContents = await Promise.all(cleaningPromises);
 
-        // Combine all email content with headers
+        // Extract relevant links from each email
+        console.log('[OpenAI Handler] Extracting relevant links from emails...');
+        const linkExtractionPromises = emails.map(email => extractRelevantLinks(email.body));
+        const emailLinks = await Promise.all(linkExtractionPromises);
+
+        // Combine all email content with headers and relevant links
         const aggregatedContent = emails.map((email, index) => {
             const cleanedText = cleanedContents[index].text;
             if (!cleanedText || cleanedText.trim().length === 0) {
@@ -452,7 +539,14 @@ export async function generateSummaryFromEmails(emails, preferences) {
                 return '';
             }
             
-            return `--- Email from: ${email.from}, Subject: ${email.subject} ---\n${cleanedText}`;
+            const relevantLinks = emailLinks[index] || [];
+            let linksSection = '';
+            if (relevantLinks.length > 0) {
+                const linksList = relevantLinks.map(link => `"${link.text}" (${link.url})`).join('; ');
+                linksSection = `\n\nRelevant Links: ${linksList}`;
+            }
+            
+            return `--- Email from: ${email.from}, Subject: ${email.subject} ---\n${cleanedText}${linksSection}`;
         }).filter(content => content.trim().length > 0).join('\n\n');
 
         if (!aggregatedContent || aggregatedContent.trim().length === 0) {
